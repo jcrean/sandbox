@@ -9,16 +9,24 @@
 
 
 
-(def ldap-server (ldap/connect {:host "ec2-50-19-176-178.compute-1.amazonaws.com"
+(defonce *config*
+  (atom {:jetty {:port 8080 :join? false}
+         :ldap  {:host "ec2-50-19-176-178.compute-1.amazonaws.com"
 ;;                                :ssl? true
-                                :bind-dn "uid=jcrean,ou=users,dc=relayzone,dc=com"
-                                :password "jcjcjc"}))
+                 :bind-dn "uid=jcrean,ou=users,dc=relayzone,dc=com"
+                 :password "jcjcjc"}}))
+
+
+(defonce *ldap* (atom nil))
+
+(defn ldap-connect []
+  (when (nil? @*ldap*)
+    (reset! *ldap* (ldap/connect (:ldap @*config*)))))
 
 (defroutes main-routes
   (GET "/" [] "<h1>Hello World Wide Web!</h1>")
   (route/resources "/")
   (route/not-found "Page not found"))
-
 
 (defn app []
   (handler/site main-routes))
@@ -34,15 +42,19 @@
     (.stop @*server*)
     (reset! *server* nil)))
 
-
+(defn restart-server []
+  (stop-server)
+  (start-server))
 
 
 (comment
 
-  (start-server)
-
   (stop-server)
 
-  (ldap/bind ldap-server "uid=jcrean,ou=users,dc=relayzone,dc=com" "jcjcjc")
+  (restart-server)
 
-  (ldap/get ldap-server "uid=jcrean,ou=users,dc=relayzone,dc=com"))
+  (ldap-connect)
+
+  (ldap/bind @*ldap* "uid=jcrean,ou=users,dc=relayzone,dc=com" "jcjcjc")
+
+  (ldap/get @*ldap* "uid=jcrean,ou=users,dc=relayzone,dc=com"))
