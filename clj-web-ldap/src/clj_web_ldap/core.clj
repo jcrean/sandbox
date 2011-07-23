@@ -14,7 +14,8 @@
          :ldap  {:host "ec2-50-19-176-178.compute-1.amazonaws.com"
 ;;                                :ssl? true
                  :bind-dn "uid=jcrean,ou=users,dc=relayzone,dc=com"
-                 :password "jcjcjc"}}))
+                 :password "jcjcjc"
+                 :user-dn-suffix "ou=users,dc=relayzone,dc=com"}}))
 
 
 (defonce *ldap* (atom nil))
@@ -46,6 +47,12 @@
   (stop-server)
   (start-server))
 
+(defn user-dn [uid]
+  (format "uid=%s,%s" uid (:user-dn-suffix (:ldap @*config*))))
+
+(defn authenticate-user [uid pass]
+  (ldap/bind @*ldap* (user-dn "jcrean") pass))
+
 
 (comment
 
@@ -55,6 +62,6 @@
 
   (ldap-connect)
 
-  (ldap/bind @*ldap* "uid=jcrean,ou=users,dc=relayzone,dc=com" "jcjcjc")
+  (authenticate-user "jcrean" "jcjcjc")
 
   (ldap/get @*ldap* "uid=jcrean,ou=users,dc=relayzone,dc=com"))
