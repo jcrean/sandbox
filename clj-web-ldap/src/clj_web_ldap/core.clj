@@ -12,9 +12,6 @@
 (defonce *config*
   (atom {:jetty {:port 8080 :join? false}
          :ldap  {:host "ec2-50-19-176-178.compute-1.amazonaws.com"
-;;                                :ssl? true
-                 :bind-dn "uid=jcrean,ou=users,dc=relayzone,dc=com"
-                 :password "jcjcjc"
                  :user-dn-suffix "ou=users,dc=relayzone,dc=com"}}))
 
 
@@ -51,7 +48,7 @@
   (format "uid=%s,%s" uid (:user-dn-suffix (:ldap @*config*))))
 
 (defn authenticate-user [uid pass]
-  (ldap/bind @*ldap* (user-dn "jcrean") pass))
+  (ldap/bind @*ldap* (user-dn uid) pass))
 
 
 (comment
