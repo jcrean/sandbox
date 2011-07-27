@@ -25,6 +25,15 @@
   (when (nil? @*ldap*)
     (reset! *ldap* (ldap/connect (:ldap @*config*)))))
 
+(defn ldap-disconnect []
+  (when-not (nil? @*ldap*)
+    (.close @*ldap*)
+    (reset! *ldap* nil)))
+
+(defn ldap-reconnect []
+  (ldap-disconnect)
+  (ldap-connect))
+
 (defn user-dn [uid]
   (format "uid=%s,%s" uid (:user-dn-suffix (:ldap @*config*))))
 
@@ -106,16 +115,14 @@
   (stop-server)
   (start-server))
 
+(defn init []
+  (restart-server)
+  (ldap-reconnect))
+
 
 (comment
 
-  (main-routes)
-
-  (stop-server)
-
-  (restart-server)
-
-  (ldap-connect)
+  (init)
 
   (authenticate-user "jcrean" "jcjcjc")
 
