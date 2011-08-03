@@ -2,14 +2,15 @@
   (:require
    [compojure.route     :as route]
    [compojure.handler   :as handler]
-   [clj-ldap.client     :as ldap])
+   [dapper.core         :as ldap])
   (:use
    [compojure.core]
    [ring.adapter.jetty  :only [run-jetty]]
    [ring.middleware params file file-info]
    [ring.util [response :only [redirect]]]
    [sandbar auth stateful-session form-authentication validation]
-   [hiccup core page-helpers]))
+   [hiccup core page-helpers]
+   [dapper.core         :only [with-ldap]]))
 
 
 
@@ -21,25 +22,18 @@
 
 (defonce *ldap* (atom nil))
 
-(defn ldap-connect []
-  (when (nil? @*ldap*)
-    (reset! *ldap* (ldap/connect (:ldap @*config*)))))
+(defn ldap-register []
+  (ldap/reregister-ldap!
+   :dapper {:host           "ec2-50-19-174-69.compute-1.amazonaws.com"
+            :user-id-attr   "uid"
+            :user-dn-suffix "ou=users,dc=relayzone,dc=com"
+            :pooled?        true
+            :pool-size      3}))
 
-(defn ldap-disconnect []
-  (when-not (nil? @*ldap*)
-    (.close @*ldap*)
-    (reset! *ldap* nil)))
-
-(defn ldap-reconnect []
-  (ldap-disconnect)
-  (ldap-connect))
-
-(defn user-dn [uid]
-  (format "uid=%s,%s" uid (:user-dn-suffix (:ldap @*config*))))
 
 (defn authenticate-user [uid pass]
-  (ldap/bind @*ldap* (user-dn uid) pass))
-
+  (with-ldap :dapper
+    (ldap/bind (ldap/user-dn uid) pass)))
 
 
 (def properties
@@ -89,7 +83,8 @@
   (GET "/" [] (layout "<h1>Hello World Wide Web!</h1>"))
   (GET "/admin" [] (ensure-authenticated
                      (layout "<h1>You have reached the administrative area!</h1>")))
-  (form-authentication-routes (fn [r c] (layout c))
+  (form-authentication-routes (fn [r c]
+                                (layout c))
                               (form-authentication-adapter))
   (ANY "*" [] (layout "Something else!")))
 
@@ -117,13 +112,14 @@
 
 (defn init []
   (restart-server)
-  (ldap-reconnect))
+  (ldap-register))
 
 
 (comment
 
   (init)
 
-  (authenticate-user "jcrean" "jcjcjc")
+  (ldap/with-ldap :dapper
+    (authenticate-user "jcrean" "jcjcjc"))
 
   (ldap/get @*ldap* "uid=jcrean,ou=users,dc=relayzone,dc=com"))
