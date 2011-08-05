@@ -16,23 +16,22 @@
 
 (defonce *config*
   (atom {:jetty {:port 8080 :join? false}
-         :ldap  {:host "ec2-50-19-176-178.compute-1.amazonaws.com"
-                 :user-dn-suffix "ou=users,dc=relayzone,dc=com"}}))
+         :ldap  {:logins {:host           "localhost"
+                          :user-id-attr   "uid"
+                          :user-dn-suffix "ou=users,dc=thedomain,dc=com"
+                          :pooled?        true
+                          :pool-size      3}}}))
 
 
 (defonce *ldap* (atom nil))
 
 (defn ldap-register []
-  (ldap/reregister-ldap!
-   :dapper {:host           "ec2-50-19-174-69.compute-1.amazonaws.com"
-            :user-id-attr   "uid"
-            :user-dn-suffix "ou=users,dc=relayzone,dc=com"
-            :pooled?        true
-            :pool-size      3}))
+  (doseq [k (keys (get @*config* :ldap))]
+    (ldap/reregister-ldap! k (get-in @*config* [:ldap k]))))
 
 
 (defn authenticate-user [uid pass]
-  (with-ldap :dapper
+  (with-ldap :logins
     (ldap/bind (ldap/user-dn uid) pass)))
 
 
@@ -99,7 +98,7 @@
 
 (defn start-server []
   (when (nil? @*server*)
-    (reset! *server* (run-jetty (var app) (:jetty @*config*)))))
+    (reset! *server* (run-jetty (var app) (get @*config* :jetty)))))
 
 (defn stop-server []
   (when-not (nil? @*server*)
@@ -110,7 +109,11 @@
   (stop-server)
   (start-server))
 
+(defn load-configuration []
+  (load-file "service-config.clj"))
+
 (defn init []
+  (load-configuration)
   (restart-server)
   (ldap-register))
 
@@ -119,7 +122,6 @@
 
   (init)
 
-  (ldap/with-ldap :dapper
-    (authenticate-user "jcrean" "jcjcjc"))
+  (authenticate-user "jcrean" "jcjcjc")
 
-  (ldap/get @*ldap* "uid=jcrean,ou=users,dc=relayzone,dc=com"))
+  )
